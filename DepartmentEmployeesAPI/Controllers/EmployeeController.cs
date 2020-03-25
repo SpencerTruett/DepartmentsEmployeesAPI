@@ -13,11 +13,11 @@ namespace DepartmentEmployeesAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class DepartmentController : ControllerBase
+    public class EmployeeController : ControllerBase
     {
         private readonly IConfiguration _config;
 
-        public DepartmentController(IConfiguration config)
+        public EmployeeController(IConfiguration config)
         {
             _config = config;
         }
@@ -38,28 +38,30 @@ namespace DepartmentEmployeesAPI.Controllers
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT Id, DeptName FROM Department";
+                    cmd.CommandText = "SELECT Id, FirstName, LastName, DepartmentId FROM Employee";
                     SqlDataReader reader = cmd.ExecuteReader();
-                    List<Departments> departments = new List<Departments>();
+                    List<Employees> employees = new List<Employees>();
 
                     while (reader.Read())
                     {
-                        Departments department = new Departments
+                        Employees employee = new Employees
                         {
                             Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            DeptName = reader.GetString(reader.GetOrdinal("DeptName"))
+                            FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                            LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                            DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId"))
                         };
 
-                        departments.Add(department);
+                        employees.Add(employee);
                     }
                     reader.Close();
 
-                    return Ok(departments);
+                    return Ok(employees);
                 }
             }
         }
 
-        [HttpGet("{id}", Name = "GetDepartment")]
+        [HttpGet("{id}", Name = "GetEmployee")]
         public async Task<IActionResult> Get([FromRoute] int id)
         {
             using (SqlConnection conn = Connection)
@@ -69,51 +71,55 @@ namespace DepartmentEmployeesAPI.Controllers
                 {
                     cmd.CommandText = @"
                         SELECT
-                            Id, DeptName
-                        FROM Department
+                            Id, FirstName, LastName, DepartmentId
+                        FROM Employee
                         WHERE Id = @id";
                     cmd.Parameters.Add(new SqlParameter("@id", id));
                     SqlDataReader reader = cmd.ExecuteReader();
 
-                    Departments department = null;
+                    Employees employee = null;
 
                     if (reader.Read())
                     {
-                        department = new Departments
+                        employee = new Employees
                         {
                             Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                            DeptName = reader.GetString(reader.GetOrdinal("DeptName"))
+                            FirstName = reader.GetString(reader.GetOrdinal("FirstName")),
+                            LastName = reader.GetString(reader.GetOrdinal("LastName")),
+                            DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId"))
                         };
                     }
                     reader.Close();
 
-                    return Ok(department);
+                    return Ok(employee);
                 }
             }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] Departments department)
+        public async Task<IActionResult> Post([FromBody] Employees employee)
         {
             using (SqlConnection conn = Connection)
             {
                 conn.Open();
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"INSERT INTO Department (DeptName)
+                    cmd.CommandText = @"INSERT INTO Employee (FirstName, LastName, DepartmentId)
                                         OUTPUT INSERTED.Id
-                                        VALUES (@DeptName)";
-                    cmd.Parameters.Add(new SqlParameter("@DeptName", department.DeptName));
+                                        VALUES (@FirstName,@LastName, @DepartmentId)";
+                    cmd.Parameters.Add(new SqlParameter("@FirstName", employee.FirstName));
+                    cmd.Parameters.Add(new SqlParameter("@LastName", employee.LastName));
+                    cmd.Parameters.Add(new SqlParameter("@DepartmentId", employee.DepartmentId));
 
                     int newId = (int)cmd.ExecuteScalar();
-                    department.Id = newId;
-                    return CreatedAtRoute("GetDepartment", new { id = newId }, department);
+                    employee.Id = newId;
+                    return CreatedAtRoute("GetEmployee", new { id = newId }, employee);
                 }
             }
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put([FromRoute] int id, [FromBody] Departments department)
+        public async Task<IActionResult> Put([FromRoute] int id, [FromBody] Employees employee)
         {
             try
             {
@@ -122,10 +128,14 @@ namespace DepartmentEmployeesAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"UPDATE Department
-                                            SET DeptName = @DeptName
+                        cmd.CommandText = @"UPDATE Employee
+                                            SET FirstName = @FirstName
+                                            SET LastName = @LastName
+                                            SET DepartmentId = @DepartmentId
                                             WHERE Id = @id";
-                        cmd.Parameters.Add(new SqlParameter("@DeptName", department.DeptName));
+                        cmd.Parameters.Add(new SqlParameter("@FirstName", employee.FirstName));
+                        cmd.Parameters.Add(new SqlParameter("@LastName", employee.LastName));
+                        cmd.Parameters.Add(new SqlParameter("@DepartmentId", employee.DepartmentId));
                         cmd.Parameters.Add(new SqlParameter("@id", id));
 
                         int rowsAffected = cmd.ExecuteNonQuery();
@@ -139,7 +149,7 @@ namespace DepartmentEmployeesAPI.Controllers
             }
             catch (Exception)
             {
-                if (!DepartmentExists(id))
+                if (!EmployeeExists(id))
                 {
                     return NotFound();
                 }
@@ -160,7 +170,7 @@ namespace DepartmentEmployeesAPI.Controllers
                     conn.Open();
                     using (SqlCommand cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = @"DELETE FROM Department WHERE Id = @id";
+                        cmd.CommandText = @"DELETE FROM Employee WHERE Id = @id";
                         cmd.Parameters.Add(new SqlParameter("@id", id));
 
                         int rowsAffected = cmd.ExecuteNonQuery();
@@ -174,7 +184,7 @@ namespace DepartmentEmployeesAPI.Controllers
             }
             catch (Exception)
             {
-                if (!DepartmentExists(id))
+                if (!EmployeeExists(id))
                 {
                     return NotFound();
                 }
@@ -185,7 +195,7 @@ namespace DepartmentEmployeesAPI.Controllers
             }
         }
 
-        private bool DepartmentExists(int id)
+        private bool EmployeeExists(int id)
         {
             using (SqlConnection conn = Connection)
             {
@@ -193,8 +203,8 @@ namespace DepartmentEmployeesAPI.Controllers
                 using (SqlCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"
-                        SELECT Id, DeptName
-                        FROM Department
+                        SELECT Id, FirstName, LastName, DepartmentId
+                        FROM Employee
                         WHERE Id = @id";
                     cmd.Parameters.Add(new SqlParameter("@id", id));
 
